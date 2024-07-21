@@ -1234,7 +1234,7 @@ It is based on sequence, which is composed of 3 functions: \cpp|start()|, \cpp|n
 The \cpp|seq_file| API starts a sequence when a user read the \verb|/proc| file.
 
 A sequence begins with the call of the function \cpp|start()|.
-If the return is a non \cpp|NULL| value, the function \cpp|next()| is called; otherwise, otherwise, the \cpp|stop()| function is called directly.
+If the return is a non \cpp|NULL| value, the function \cpp|next()| is called; otherwise, the \cpp|stop()| function is called directly.
 This function is an iterator, the goal is to go through all the data.
 Each time \cpp|next()| is called, the function \cpp|show()| is also called.
 It writes data values in the buffer read by the user.
@@ -1346,14 +1346,14 @@ sudo lsmod | grep hello_sysfs
 What is the current value of \cpp|myvariable| ?
 
 \begin{codebash}
-cat /sys/kernel/mymodule/myvariable
+sudo cat /sys/kernel/mymodule/myvariable
 \end{codebash}
 
 Set the value of \cpp|myvariable| and check that it changed.
 
 \begin{codebash}
-echo "32" > /sys/kernel/mymodule/myvariable
-cat /sys/kernel/mymodule/myvariable
+echo "32" | sudo tee /sys/kernel/mymodule/myvariable
+sudo cat /sys/kernel/mymodule/myvariable
 \end{codebash}
 
 Finally, remove the test module:
@@ -1566,6 +1566,11 @@ At first glance, it appears we could solve this particular problem by checking i
 When A is removed, it sees that the system call was changed to \cpp|B_openat| so that it is no longer pointing to \cpp|A_openat|, so it will not restore it to \cpp|sys_openat| before it is removed from memory.
 Unfortunately, \cpp|B_openat| will still try to call \cpp|A_openat| which is no longer there, so that even without removing B the system would crash.
 
+For x86 architecture, the system call table cannot be used to invoke a system call after commit 
+\href{https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=1e3ad78334a69b36e107232e337f9d693dcc9df2}{1e3ad78} since v6.9. 
+This commit has been backported to long term stable kernels, like v5.15.154+, v6.1.85+, v6.6.26+ and v6.8.5+, see this \href{https://stackoverflow.com/a/78607015}{answer} for more details.
+In this case, thanks to Kprobes, a hook can be used instead on the system call entry to intercept the system call.
+
 Note that all the related problems make syscall stealing unfeasible for production use.
 In order to keep people from doing potential harmful things \cpp|sys_call_table| is no longer exported.
 This means, if you want to do something more than a mere dry run of this example, you will have to patch your current kernel in order to have \cpp|sys_call_table| exported.
@@ -1755,7 +1760,7 @@ Flashing keyboard LEDs can be such a solution: It is an immediate way to attract
 Keyboard LEDs are present on every hardware, they are always visible, they do not need any setup, and their use is rather simple and non-intrusive, compared to writing to a tty or a file.
 
 From v4.14 to v4.15, the timer API made a series of changes to improve memory safety.
-A buffer overflow in the area of a \cpp|timer_list| structure may be able to overwrite the \cpp|function| and \cpp|data| fields, providing the attacker with a way to use return-object programming (ROP) to call arbitrary functions within the kernel.
+A buffer overflow in the area of a \cpp|timer_list| structure may be able to overwrite the \cpp|function| and \cpp|data| fields, providing the attacker with a way to use return-oriented programming (ROP) to call arbitrary functions within the kernel.
 Also, the function prototype of the callback, containing a \cpp|unsigned long| argument, will prevent work from any type checking.
 Furthermore, the function prototype with \cpp|unsigned long| argument may be an obstacle to the forward-edge protection of \textit{control-flow integrity}.
 Thus, it is better to use a unique prototype to separate from the cluster that takes an \cpp|unsigned long| argument.
